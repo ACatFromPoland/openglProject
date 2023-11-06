@@ -2,25 +2,12 @@
 #include "glad/glad.h"
 #include <iostream>
 #include <vector>
-
-const std::string gVertexShaderSource =
-	"#version 410 core\n"
-	"in vec4 position;\n"
-	"void main()\n"
-	"{\n"
-	"	gl_Position = vec4(position.x, position.y, position.z, position.w);"
-	"}\n";
-
-const std::string gFragmentShaderSource =
-	"#version 410 core\n"
-	"out vec4 color;\n"
-	"void main()\n"
-	"{\n"
-	"	color = vec4(1.0f, 0.5f, 0.0f, 1.0f);"
-	"}\n";
+#include <string>
+#include <fstream>
 
 GLuint gVertexArrayObject = 0;
-GLuint gVertexBufferObject = 0;
+GLuint gVertexBufferObjectPosition = 0;
+GLuint gVertexBufferObjectColor = 0;
 GLuint gGraphicsPipelineShaderProgram = 0;
 
 int gScreenHeight = 480;
@@ -28,6 +15,23 @@ int gScreenWidth = 640;
 SDL_Window* gGraphicsApplicationWindow = nullptr;
 SDL_GLContext gOpenGLContext = nullptr;
 
+std::string LoadShaderAsString(const std::string& filename)
+{
+	std::string result = "";
+	std::ifstream file(filename.c_str());
+
+	if (file.is_open())
+	{
+		std::string line = "";
+		while (std::getline(file, line))
+		{		
+			result += line + '\n';
+		}
+		file.close();
+	}
+
+	return result;
+}
 
 GLuint CompileShader(GLuint type, const std::string& source)
 {
@@ -87,11 +91,14 @@ void Loop()
 		glViewport(0, 0, gScreenWidth, gScreenHeight);
 		glClearColor(0.f, 0.f, 0.f, 1.f);
 
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+
 		glUseProgram(gGraphicsPipelineShaderProgram);
 
 		// Draw
 		glBindVertexArray(gVertexArrayObject);
-		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObject);
+		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition);
+		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectColor);
 
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
@@ -128,23 +135,44 @@ int main(int argc, char* argv[])
 			0.8f, -0.8f, 0.0f,
 			0.0f, 0.8f, 0.0f
 		};
+		const std::vector<GLfloat> vertexColors{
+			1.0f, 0.0f, 0.0f,
+			0.0f, 1.0f, 0.0f,
+			0.0f, 0.0f, 1.0f
+		};
+
+		// Positions
 		glGenVertexArrays(1, &gVertexArrayObject);
 		glBindVertexArray(gVertexArrayObject);
 
-		glGenBuffers(1, &gVertexBufferObject);
-		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObject);
+		glGenBuffers(1, &gVertexBufferObjectPosition);
+		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition);
 		glBufferData(GL_ARRAY_BUFFER, vertexPosition.size() * sizeof(GLfloat), vertexPosition.data(), GL_STATIC_DRAW);
 
+		// Enable positions
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
-		glBindVertexArray(0);
+		// Colors
+		glGenBuffers(1, &gVertexBufferObjectColor);
+		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectColor);
+		glBufferData(GL_ARRAY_BUFFER, vertexColors.size() * sizeof(GLfloat), vertexColors.data(), GL_STATIC_DRAW);
+
+		// Enable colors
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+
+		glBindVertexArray(0); // Unbind buffer
+
 		glDisableVertexAttribArray(0);
+		glDisableVertexAttribArray(1);
 	}
 
 	// Graphics pipeline init
 	{
-		gGraphicsPipelineShaderProgram = CreateShaderProgram(gVertexShaderSource, gFragmentShaderSource);
+		std::string vertexShaderSource = LoadShaderAsString("shaders/vert.glsl");
+		std::string fragmentShaderSource = LoadShaderAsString("shaders/frag.glsl");
+		gGraphicsPipelineShaderProgram = CreateShaderProgram(vertexShaderSource, fragmentShaderSource);
 	}
 
 	// Enable logic
