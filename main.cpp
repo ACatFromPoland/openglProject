@@ -5,15 +5,32 @@
 #include <string>
 #include <fstream>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include "model.h"
+
 GLuint gVertexArrayObject = 0;
 GLuint gVertexBufferObjectPosition = 0;
 GLuint gVertexBufferObjectColor = 0;
 GLuint gGraphicsPipelineShaderProgram = 0;
 
-int gScreenHeight = 480;
-int gScreenWidth = 640;
+int gScreenHeight = 720;
+int gScreenWidth = 960;
 SDL_Window* gGraphicsApplicationWindow = nullptr;
 SDL_GLContext gOpenGLContext = nullptr;
+
+t_Model model;
+
+struct Camera
+{
+	glm::mat4 model = glm::mat4(0.5f);
+	glm::mat4 view = glm::mat4(1.0f);
+	glm::mat4 projection = glm::mat4(1.0f);
+};
+
+Camera gCameraMatrixs = {};
 
 std::string LoadShaderAsString(const std::string& filename)
 {
@@ -73,8 +90,26 @@ GLuint CreateShaderProgram(const std::string& vertexShaderSource, const std::str
 
 void Loop()
 {
+	glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+	glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+	glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+	float deltaTime = 0.0f;
+	float lastFrame = 0.0f;
+
+	float yaw = -90.0f;
+	float pitch = 0.0f;
+	float sensitivity = 0.1f;
+
+	SDL_SetRelativeMouseMode(SDL_TRUE);
+	SDL_ShowCursor(SDL_DISABLE);
+
 	while (true)
 	{
+		float currentFrame = SDL_GetTicks() / 1000.0f;
+		deltaTime = currentFrame - lastFrame;
+		lastFrame = currentFrame;
+
 		SDL_Event e;
 		while (SDL_PollEvent(&e) != 0)
 		{
@@ -82,25 +117,74 @@ void Loop()
 			{
 				return;
 			}
+
+			if (e.type == SDL_MOUSEMOTION)
+			{
+				float offsetX = e.motion.xrel * sensitivity;
+				float offsetY = e.motion.yrel * sensitivity;
+
+				yaw += offsetX;
+				pitch -= offsetY;
+
+				if (pitch > 89.0f)
+					pitch = 89.0f;
+				if (pitch < -89.0f)
+					pitch = -89.0f;
+
+				glm::vec3 front;
+				front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+				front.y = sin(glm::radians(pitch));
+				front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+				cameraFront = glm::normalize(front);
+			}
+
+			const Uint8* currentKeyStates = SDL_GetKeyboardState(NULL);
+			float cameraSpeed = 50.0f * deltaTime;
+
+			if (currentKeyStates[SDL_SCANCODE_W])
+				cameraPos += cameraSpeed * cameraFront;
+			if (currentKeyStates[SDL_SCANCODE_S])
+				cameraPos -= cameraSpeed * cameraFront;
+			if (currentKeyStates[SDL_SCANCODE_A])
+				cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+			if (currentKeyStates[SDL_SCANCODE_D])
+				cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+
 		}
 
 		// Predraw
-		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_CULL_FACE);
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_CULL_FACE);
 
 		glViewport(0, 0, gScreenWidth, gScreenHeight);
-		glClearColor(0.f, 0.f, 0.f, 1.f);
+		glClearColor(0.003f, 0.137f, 0.172f, 1.0f);
 
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
+		// Draw
+		float angle = fmod(currentFrame / 10.0f, 1.0f) * 720.0f;
+		float angleRadians = glm::radians(angle);
+		glm::mat4 modelMatrix = glm::rotate(glm::mat4(1.0f), angleRadians, glm::vec3(0.0f, 1.0f, 0.0f));
+
+		gCameraMatrixs.model = modelMatrix;//glm::translate(gCameraMatrixs.model, glm::vec3(0.0f, 0.0f, 0.0f));
+		gCameraMatrixs.view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+		gCameraMatrixs.projection = glm::perspective(glm::radians(45.0f), (float)gScreenWidth / (float)gScreenHeight, 0.1f, 1000.0f);
+
 		glUseProgram(gGraphicsPipelineShaderProgram);
 
-		// Draw
+		GLint modelLoc = glGetUniformLocation(gGraphicsPipelineShaderProgram, "model");
+		GLint viewLoc = glGetUniformLocation(gGraphicsPipelineShaderProgram, "view");
+		GLint projLoc = glGetUniformLocation(gGraphicsPipelineShaderProgram, "projection");
+
+		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(gCameraMatrixs.model));
+		glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(gCameraMatrixs.view));
+		glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(gCameraMatrixs.projection));
+
 		glBindVertexArray(gVertexArrayObject);
 		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition);
 		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectColor);
 
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glDrawArrays(GL_TRIANGLES, 0, (GLsizei)model.vertices.size());
 
 		SDL_GL_SwapWindow(gGraphicsApplicationWindow);
 	}
@@ -130,16 +214,7 @@ int main(int argc, char* argv[])
 
 	// Create some vertex data for testing
 	{
-		const std::vector<GLfloat> vertexPosition{
-			-0.8f, -0.8f, 0.0f,
-			0.8f, -0.8f, 0.0f,
-			0.0f, 0.8f, 0.0f
-		};
-		const std::vector<GLfloat> vertexColors{
-			1.0f, 0.0f, 0.0f,
-			0.0f, 1.0f, 0.0f,
-			0.0f, 0.0f, 1.0f
-		};
+		loadModel(model, "Submarine.obj");
 
 		// Positions
 		glGenVertexArrays(1, &gVertexArrayObject);
@@ -147,25 +222,28 @@ int main(int argc, char* argv[])
 
 		glGenBuffers(1, &gVertexBufferObjectPosition);
 		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition);
-		glBufferData(GL_ARRAY_BUFFER, vertexPosition.size() * sizeof(GLfloat), vertexPosition.data(), GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(t_VertexStruct), model.vertices.data(), GL_STATIC_DRAW);
 
-		// Enable positions
+		GLsizei stride = sizeof(t_VertexStruct);
+		
 		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0 );
 
-		// Colors
-		glGenBuffers(1, &gVertexBufferObjectColor);
-		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectColor);
-		glBufferData(GL_ARRAY_BUFFER, vertexColors.size() * sizeof(GLfloat), vertexColors.data(), GL_STATIC_DRAW);
-
-		// Enable colors
 		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)sizeof(t_Vec3) );
+		
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(t_Vec3) * 2) );
+
+		glEnableVertexAttribArray(3);
+		glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(t_Vec3) * 2 + sizeof(t_Vec2)) );
 
 		glBindVertexArray(0); // Unbind buffer
 
 		glDisableVertexAttribArray(0);
 		glDisableVertexAttribArray(1);
+		glDisableVertexAttribArray(2);
+		glDisableVertexAttribArray(3);
 	}
 
 	// Graphics pipeline init
