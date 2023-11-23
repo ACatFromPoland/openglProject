@@ -11,9 +11,12 @@
 
 #include "model.h"
 
-GLuint gVertexArrayObject = 0;
-GLuint gVertexBufferObjectPosition = 0;
-GLuint gVertexBufferObjectColor = 0;
+GLuint gVertexArrayObject_1 = 0;
+GLuint gVertexBufferObjectPosition_1 = 0;
+
+GLuint gVertexArrayObject_2 = 0;
+GLuint gVertexBufferObjectPosition_2 = 0;
+
 GLuint gGraphicsPipelineShaderProgram = 0;
 
 int gScreenHeight = 720;
@@ -21,7 +24,8 @@ int gScreenWidth = 960;
 SDL_Window* gGraphicsApplicationWindow = nullptr;
 SDL_GLContext gOpenGLContext = nullptr;
 
-t_Model model;
+t_Model model_1;
+t_Model model_2;
 
 struct Camera
 {
@@ -104,6 +108,8 @@ void Loop()
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 	SDL_ShowCursor(SDL_DISABLE);
 
+	bool drawSwitch = false;
+
 	while (true)
 	{
 		float currentFrame = SDL_GetTicks() / 1000.0f;
@@ -149,7 +155,11 @@ void Loop()
 				cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
 			if (currentKeyStates[SDL_SCANCODE_D])
 				cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-
+			
+			if (currentKeyStates[SDL_SCANCODE_O])
+				drawSwitch = false;
+			if (currentKeyStates[SDL_SCANCODE_P])
+				drawSwitch = true;
 		}
 
 		// Predraw
@@ -162,11 +172,7 @@ void Loop()
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
 		// Draw
-		float angle = fmod(currentFrame / 10.0f, 1.0f) * 720.0f;
-		float angleRadians = glm::radians(angle);
-		glm::mat4 modelMatrix = glm::rotate(glm::mat4(1.0f), angleRadians, glm::vec3(0.0f, 1.0f, 0.0f));
-
-		gCameraMatrixs.model = modelMatrix;//glm::translate(gCameraMatrixs.model, glm::vec3(0.0f, 0.0f, 0.0f));
+		gCameraMatrixs.model = glm::translate(gCameraMatrixs.model, glm::vec3(0.0f, 0.0f, 0.0f));
 		gCameraMatrixs.view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 		gCameraMatrixs.projection = glm::perspective(glm::radians(45.0f), (float)gScreenWidth / (float)gScreenHeight, 0.1f, 1000.0f);
 
@@ -180,12 +186,20 @@ void Loop()
 		glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(gCameraMatrixs.view));
 		glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(gCameraMatrixs.projection));
 
-		glBindVertexArray(gVertexArrayObject);
-		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition);
-		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectColor);
-
-		glDrawArrays(GL_TRIANGLES, 0, (GLsizei)model.vertices.size());
-
+		// Draw Model 1
+		if (drawSwitch)
+		{
+			glBindVertexArray(gVertexArrayObject_1);
+			glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition_1);
+			glDrawArrays(GL_TRIANGLES, 0, (GLsizei)model_1.vertices.size());
+		}
+		else
+		{
+			glBindVertexArray(gVertexArrayObject_2);
+			glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition_2);
+			glDrawArrays(GL_TRIANGLES, 0, (GLsizei)model_2.vertices.size());
+		}
+		
 		SDL_GL_SwapWindow(gGraphicsApplicationWindow);
 	}
 }
@@ -214,30 +228,64 @@ int main(int argc, char* argv[])
 
 	// Create some vertex data for testing
 	{
-		loadModel(model, "Submarine.obj");
+		loadModel(model_1, "Engineer.obj");
 
 		// Positions
-		glGenVertexArrays(1, &gVertexArrayObject);
-		glBindVertexArray(gVertexArrayObject);
+		glGenVertexArrays(1, &gVertexArrayObject_1);
+		glBindVertexArray(gVertexArrayObject_1);
 
-		glGenBuffers(1, &gVertexBufferObjectPosition);
-		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition);
-		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(t_VertexStruct), model.vertices.data(), GL_STATIC_DRAW);
+		glGenBuffers(1, &gVertexBufferObjectPosition_1);
+		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition_1);
+		glBufferData(GL_ARRAY_BUFFER, model_1.vertices.size() * sizeof(t_VertexStruct), model_1.vertices.data(), GL_STATIC_DRAW);
 
 		GLsizei stride = sizeof(t_VertexStruct);
 		
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0 );
-
+		
 		glEnableVertexAttribArray(1);
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)sizeof(t_Vec3) );
 		
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(t_Vec3) * 2) );
-
+		
 		glEnableVertexAttribArray(3);
 		glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(t_Vec3) * 2 + sizeof(t_Vec2)) );
 
+		glBindVertexArray(0); // Unbind buffer
+
+		glDisableVertexAttribArray(0);
+		glDisableVertexAttribArray(1);
+		glDisableVertexAttribArray(2);
+		glDisableVertexAttribArray(3);
+	}
+
+	// Create some vertex data for testing
+	{
+		loadModel(model_2, "EngineerShiny.obj");
+
+		// Positions
+		glGenVertexArrays(1, &gVertexArrayObject_2);
+		glBindVertexArray(gVertexArrayObject_2);
+
+		glGenBuffers(1, &gVertexBufferObjectPosition_2);
+		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition_2);
+		glBufferData(GL_ARRAY_BUFFER, model_2.vertices.size() * sizeof(t_VertexStruct), model_2.vertices.data(), GL_STATIC_DRAW);
+
+		GLsizei stride = sizeof(t_VertexStruct);
+
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+		
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)sizeof(t_Vec3));
+		
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(t_Vec3) * 2));
+		
+		glEnableVertexAttribArray(3);
+		glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(t_Vec3) * 2 + sizeof(t_Vec2)));
+		
 		glBindVertexArray(0); // Unbind buffer
 
 		glDisableVertexAttribArray(0);
