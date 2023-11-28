@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.32126.315
+# Visual Studio Version 17
+VisualStudioVersion = 17.7.34031.279
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenGlProjec", "OpenGlProjec.vcxproj", "{F895FFBF-0889-4E6A-934A-814B07BC7DE3}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gladbuild", "..\gladbuild\gladbuild.vcxproj", "{FFF57613-6D7E-4940-80A5-DD0C7B9833C3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,14 @@ Global
 		{F895FFBF-0889-4E6A-934A-814B07BC7DE3}.Release|x64.Build.0 = Release|x64
 		{F895FFBF-0889-4E6A-934A-814B07BC7DE3}.Release|x86.ActiveCfg = Release|Win32
 		{F895FFBF-0889-4E6A-934A-814B07BC7DE3}.Release|x86.Build.0 = Release|Win32
+		{FFF57613-6D7E-4940-80A5-DD0C7B9833C3}.Debug|x64.ActiveCfg = Debug|x64
+		{FFF57613-6D7E-4940-80A5-DD0C7B9833C3}.Debug|x64.Build.0 = Debug|x64
+		{FFF57613-6D7E-4940-80A5-DD0C7B9833C3}.Debug|x86.ActiveCfg = Debug|Win32
+		{FFF57613-6D7E-4940-80A5-DD0C7B9833C3}.Debug|x86.Build.0 = Debug|Win32
+		{FFF57613-6D7E-4940-80A5-DD0C7B9833C3}.Release|x64.ActiveCfg = Release|x64
+		{FFF57613-6D7E-4940-80A5-DD0C7B9833C3}.Release|x64.Build.0 = Release|x64
+		{FFF57613-6D7E-4940-80A5-DD0C7B9833C3}.Release|x86.ActiveCfg = Release|Win32
+		{FFF57613-6D7E-4940-80A5-DD0C7B9833C3}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

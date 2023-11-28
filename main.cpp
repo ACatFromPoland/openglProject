@@ -4,100 +4,25 @@
 #include <vector>
 #include <string>
 #include <fstream>
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
-#include "model.h"
-
-GLuint gVertexArrayObject_1 = 0;
-GLuint gVertexBufferObjectPosition_1 = 0;
-
-GLuint gVertexArrayObject_2 = 0;
-GLuint gVertexBufferObjectPosition_2 = 0;
-
-GLuint gGraphicsPipelineShaderProgram = 0;
 
 int gScreenHeight = 720;
 int gScreenWidth = 960;
 SDL_Window* gGraphicsApplicationWindow = nullptr;
 SDL_GLContext gOpenGLContext = nullptr;
 
-t_Model model_1;
-t_Model model_2;
+#include "shadertools.h"
+#include "scenetools.h"
 
-struct Camera
-{
-	glm::mat4 model = glm::mat4(0.5f);
-	glm::mat4 view = glm::mat4(1.0f);
-	glm::mat4 projection = glm::mat4(1.0f);
-};
+#include "model.h"
 
-Camera gCameraMatrixs = {};
-
-std::string LoadShaderAsString(const std::string& filename)
-{
-	std::string result = "";
-	std::ifstream file(filename.c_str());
-
-	if (file.is_open())
-	{
-		std::string line = "";
-		while (std::getline(file, line))
-		{		
-			result += line + '\n';
-		}
-		file.close();
-	}
-
-	return result;
-}
-
-GLuint CompileShader(GLuint type, const std::string& source)
-{
-	GLuint shaderObject;
-	if (type == GL_VERTEX_SHADER)
-	{
-		shaderObject = glCreateShader(GL_VERTEX_SHADER);
-	}
-	else if (type == GL_FRAGMENT_SHADER)
-	{
-		shaderObject = glCreateShader(GL_FRAGMENT_SHADER);
-	}
-	else
-	{
-		shaderObject = glCreateShader(GL_SHADER);
-	}
-	
-	const char* src = source.c_str();
-	glShaderSource(shaderObject, 1, &src, nullptr);
-	glCompileShader(shaderObject);
-
-	return shaderObject;
-}
-
-GLuint CreateShaderProgram(const std::string& vertexShaderSource, const std::string& fragmentShaderSource)
-{
-	GLuint programObject = glCreateProgram();
-	GLuint myVertexShader = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
-	GLuint myFragmentShader = CompileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
-	
-	glAttachShader(programObject, myVertexShader);
-	glAttachShader(programObject, myFragmentShader);
-	glLinkProgram(programObject);
-
-	glValidateProgram(programObject);
-
-	return programObject;
-}
+#include "terraingeneration.h"
+#include "terraingeometry.h"
 
 void Loop()
 {
-	glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
-	glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-	glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-
 	float deltaTime = 0.0f;
 	float lastFrame = 0.0f;
 
@@ -107,8 +32,6 @@ void Loop()
 
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 	SDL_ShowCursor(SDL_DISABLE);
-
-	bool drawSwitch = false;
 
 	while (true)
 	{
@@ -141,25 +64,20 @@ void Loop()
 				front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
 				front.y = sin(glm::radians(pitch));
 				front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-				cameraFront = glm::normalize(front);
+				gCameraMatrixs.cameraFront = glm::normalize(front);
 			}
 
 			const Uint8* currentKeyStates = SDL_GetKeyboardState(NULL);
 			float cameraSpeed = 50.0f * deltaTime;
 
 			if (currentKeyStates[SDL_SCANCODE_W])
-				cameraPos += cameraSpeed * cameraFront;
+				gCameraMatrixs.cameraPos += cameraSpeed * gCameraMatrixs.cameraFront;
 			if (currentKeyStates[SDL_SCANCODE_S])
-				cameraPos -= cameraSpeed * cameraFront;
+				gCameraMatrixs.cameraPos -= cameraSpeed * gCameraMatrixs.cameraFront;
 			if (currentKeyStates[SDL_SCANCODE_A])
-				cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+				gCameraMatrixs.cameraPos -= glm::normalize(glm::cross(gCameraMatrixs.cameraFront, gCameraMatrixs.cameraUp)) * cameraSpeed;
 			if (currentKeyStates[SDL_SCANCODE_D])
-				cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-			
-			if (currentKeyStates[SDL_SCANCODE_O])
-				drawSwitch = false;
-			if (currentKeyStates[SDL_SCANCODE_P])
-				drawSwitch = true;
+				gCameraMatrixs.cameraPos += glm::normalize(glm::cross(gCameraMatrixs.cameraFront, gCameraMatrixs.cameraUp)) * cameraSpeed;
 		}
 
 		// Predraw
@@ -167,39 +85,13 @@ void Loop()
 		glEnable(GL_CULL_FACE);
 
 		glViewport(0, 0, gScreenWidth, gScreenHeight);
-		glClearColor(0.003f, 0.137f, 0.172f, 1.0f);
+		glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
 		// Draw
-		gCameraMatrixs.model = glm::translate(gCameraMatrixs.model, glm::vec3(0.0f, 0.0f, 0.0f));
-		gCameraMatrixs.view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-		gCameraMatrixs.projection = glm::perspective(glm::radians(45.0f), (float)gScreenWidth / (float)gScreenHeight, 0.1f, 1000.0f);
+		drawTerrain();
 
-		glUseProgram(gGraphicsPipelineShaderProgram);
-
-		GLint modelLoc = glGetUniformLocation(gGraphicsPipelineShaderProgram, "model");
-		GLint viewLoc = glGetUniformLocation(gGraphicsPipelineShaderProgram, "view");
-		GLint projLoc = glGetUniformLocation(gGraphicsPipelineShaderProgram, "projection");
-
-		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(gCameraMatrixs.model));
-		glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(gCameraMatrixs.view));
-		glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(gCameraMatrixs.projection));
-
-		// Draw Model 1
-		if (drawSwitch)
-		{
-			glBindVertexArray(gVertexArrayObject_1);
-			glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition_1);
-			glDrawArrays(GL_TRIANGLES, 0, (GLsizei)model_1.vertices.size());
-		}
-		else
-		{
-			glBindVertexArray(gVertexArrayObject_2);
-			glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition_2);
-			glDrawArrays(GL_TRIANGLES, 0, (GLsizei)model_2.vertices.size());
-		}
-		
 		SDL_GL_SwapWindow(gGraphicsApplicationWindow);
 	}
 }
@@ -226,82 +118,8 @@ int main(int argc, char* argv[])
 	std::cout << "Version: " << glGetString(GL_VERSION) << std::endl;
 	std::cout << "Shading Language: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
-	// Create some vertex data for testing
-	{
-		loadModel(model_1, "Engineer.obj");
+	initTerrainGeometry();
 
-		// Positions
-		glGenVertexArrays(1, &gVertexArrayObject_1);
-		glBindVertexArray(gVertexArrayObject_1);
-
-		glGenBuffers(1, &gVertexBufferObjectPosition_1);
-		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition_1);
-		glBufferData(GL_ARRAY_BUFFER, model_1.vertices.size() * sizeof(t_VertexStruct), model_1.vertices.data(), GL_STATIC_DRAW);
-
-		GLsizei stride = sizeof(t_VertexStruct);
-		
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0 );
-		
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)sizeof(t_Vec3) );
-		
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(t_Vec3) * 2) );
-		
-		glEnableVertexAttribArray(3);
-		glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(t_Vec3) * 2 + sizeof(t_Vec2)) );
-
-		glBindVertexArray(0); // Unbind buffer
-
-		glDisableVertexAttribArray(0);
-		glDisableVertexAttribArray(1);
-		glDisableVertexAttribArray(2);
-		glDisableVertexAttribArray(3);
-	}
-
-	// Create some vertex data for testing
-	{
-		loadModel(model_2, "EngineerShiny.obj");
-
-		// Positions
-		glGenVertexArrays(1, &gVertexArrayObject_2);
-		glBindVertexArray(gVertexArrayObject_2);
-
-		glGenBuffers(1, &gVertexBufferObjectPosition_2);
-		glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObjectPosition_2);
-		glBufferData(GL_ARRAY_BUFFER, model_2.vertices.size() * sizeof(t_VertexStruct), model_2.vertices.data(), GL_STATIC_DRAW);
-
-		GLsizei stride = sizeof(t_VertexStruct);
-
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
-		
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)sizeof(t_Vec3));
-		
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(t_Vec3) * 2));
-		
-		glEnableVertexAttribArray(3);
-		glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(t_Vec3) * 2 + sizeof(t_Vec2)));
-		
-		glBindVertexArray(0); // Unbind buffer
-
-		glDisableVertexAttribArray(0);
-		glDisableVertexAttribArray(1);
-		glDisableVertexAttribArray(2);
-		glDisableVertexAttribArray(3);
-	}
-
-	// Graphics pipeline init
-	{
-		std::string vertexShaderSource = LoadShaderAsString("shaders/vert.glsl");
-		std::string fragmentShaderSource = LoadShaderAsString("shaders/frag.glsl");
-		gGraphicsPipelineShaderProgram = CreateShaderProgram(vertexShaderSource, fragmentShaderSource);
-	}
-
-	// Enable logic
 	Loop();
 
 	SDL_DestroyWindow(gGraphicsApplicationWindow);
