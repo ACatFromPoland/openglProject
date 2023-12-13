@@ -96,7 +96,9 @@ void generateCaveChunk(t_CaveChunk& chunk)
         generated = true;
     }
 
-	int size = 256;
+    // 920
+
+    int size = 128;
 	for (float y = 0; y < size; y++)
 	{
 		for (float x = 0; x < size; x++)

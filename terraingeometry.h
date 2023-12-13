@@ -8,6 +8,8 @@ struct t_terrainGeometry
 
 	t_Vec3 chunkOriginPosition = {0.0f, 0.0f, 0.0f};
 
+	t_CaveChunk chunk;
+
 	~t_terrainGeometry()
 	{
 		glDeleteVertexArrays(1, &VAO);
@@ -50,7 +52,7 @@ void drawTerrain()
 {
 	gCameraMatrixs.model = glm::translate(gCameraMatrixs.model, glm::vec3(g_terrainGeometry.chunkOriginPosition.x, g_terrainGeometry.chunkOriginPosition.y, g_terrainGeometry.chunkOriginPosition.z));
 	gCameraMatrixs.view = glm::lookAt(gCameraMatrixs.cameraPos, gCameraMatrixs.cameraPos + gCameraMatrixs.cameraFront, gCameraMatrixs.cameraUp);
-	gCameraMatrixs.projection = glm::perspective(glm::radians(45.0f), (float)gScreenWidth / (float)gScreenHeight, 0.1f, 1000.0f);
+	gCameraMatrixs.projection = glm::perspective(glm::radians(45.0f), (float)gScreenWidth / (float)gScreenHeight, 0.1f, 2000.0f);
 
 	glUseProgram(g_terrainGeometry.terrainShader);
 
@@ -62,11 +64,8 @@ void drawTerrain()
 	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(gCameraMatrixs.view));
 	glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(gCameraMatrixs.projection));
 
-	t_CaveChunk chunk;
-	generateCaveChunk(chunk);
-
 	glBindVertexArray(g_terrainGeometry.VAO);
 	glBindBuffer(GL_ARRAY_BUFFER, g_terrainGeometry.VBO);
-	glBufferData(GL_ARRAY_BUFFER, chunk.points.size() * sizeof(t_VertexStruct), chunk.points.data(), GL_STATIC_DRAW);
-	glDrawArrays(GL_TRIANGLES, 0, (GLsizei)chunk.points.size());
+	glBufferData(GL_ARRAY_BUFFER, g_terrainGeometry.chunk.points.size() * sizeof(t_VertexStruct), g_terrainGeometry.chunk.points.data(), GL_STATIC_DRAW);
+	glDrawArrays(GL_TRIANGLES, 0, (GLsizei)g_terrainGeometry.chunk.points.size());
 }

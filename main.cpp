@@ -33,6 +33,8 @@ void Loop()
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 	SDL_ShowCursor(SDL_DISABLE);
 
+	generateCaveChunk(g_terrainGeometry.chunk);
+
 	while (true)
 	{
 		float currentFrame = SDL_GetTicks() / 1000.0f;
