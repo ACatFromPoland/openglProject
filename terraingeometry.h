@@ -4,6 +4,7 @@ struct t_terrainGeometry
 {
 	GLuint VAO = 0;
 	GLuint VBO = 0;
+	GLuint EBO = 0;
 	GLuint terrainShader = 0;
 
 	t_Vec3 chunkOriginPosition = {0.0f, 0.0f, 0.0f};
